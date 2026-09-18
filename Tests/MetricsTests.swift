@@ -16717,10 +16717,21 @@ struct MetricsTests {
             .split(separator: "\n", omittingEmptySubsequences: false)
             .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
             .joined(separator: "\n")
+        let screenshotSupportSource = ((try? String(
+            contentsOfFile: "Sources/Vorssaint/Services/QuickTools/ScreenshotSupport.swift",
+            encoding: .utf8)) ?? "")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
         expect(screenshotEditorSource.contains("if tool != .select, tool != .crop {\n            selectedID = nil\n        }"),
                "the editor clears stale selection before creating a new annotation")
-        expect(screenshotEditorSource.contains("annotations.append(annotation)\n            selectedID = annotation.id\n            draftID = annotation.id"),
-               "a shape draft stays selected while it is being drawn")
+        expect(!screenshotEditorSource.contains("annotations.append(annotation)\n            selectedID = annotation.id\n            draftID = annotation.id")
+                && screenshotEditorSource.contains("} else if let draftID {\n                selectedID = draftID"),
+               "a shape is selected only after its drag ends")
+        expect(screenshotSupportSource.contains("let color: ColorID?")
+                && screenshotSupportSource.contains("let stroke: StrokeID?")
+                && screenshotSupportSource.contains("let arrowStyle: ArrowStyleID?"),
+               "selection styles can leave controls untouched when a mark does not use them")
 
         let resized = ScreenshotSupport.resizedRect(CGRect(x: 10, y: 10, width: 100, height: 100),
                                                     dragging: .bottomRight,
@@ -16794,11 +16805,31 @@ struct MetricsTests {
                "scribbly arrows vary by seed but keep one stable design when redrawn")
         let thickArrow = ScreenshotSupport.Annotation(tool: .arrow, stroke: .large)
         let thinArrow = ScreenshotSupport.Annotation(tool: .arrow, stroke: .small)
-        expect(ScreenshotSupport.selectionStyle(for: thinArrow).stroke == .small
+        expect(ScreenshotSupport.selectionStyle(for: thinArrow).stroke == .some(.small)
                 && ScreenshotSupport.selectionStyle(for: thinArrow)
                     != ScreenshotSupport.selectionStyle(for: thickArrow),
                "selecting a thin arrow exposes its own stroke in the editor controls")
-        expect(screenshotEditorSource.contains("selectionStyle(for: hit)"),
+        let stickerStyle = ScreenshotSupport.selectionStyle(
+            for: ScreenshotSupport.Annotation(tool: .sticker,
+                                               color: .blue,
+                                               stroke: .large))
+        let pixelateStyle = ScreenshotSupport.selectionStyle(
+            for: ScreenshotSupport.Annotation(tool: .pixelate,
+                                               color: .green,
+                                               stroke: .large))
+        let highlightStyle = ScreenshotSupport.selectionStyle(
+            for: ScreenshotSupport.Annotation(tool: .highlight,
+                                               color: .yellow,
+                                               stroke: .large))
+        expect(stickerStyle == ScreenshotSupport.SelectionStyle(color: nil,
+                                                                stroke: nil,
+                                                                arrowStyle: nil)
+                && pixelateStyle == stickerStyle
+                && highlightStyle.color == .some(.yellow)
+                && highlightStyle.stroke == nil
+                && highlightStyle.arrowStyle == nil,
+               "selection sync leaves unused sticker and pixelation controls alone")
+        expect(screenshotEditorSource.contains("syncControls(to: hit)"),
                "the editor synchronizes controls from the selected annotation")
         let existingSelectionSource: String
         if let start = screenshotEditorSource.range(of: "private func selectExistingAnnotation"),
@@ -16807,11 +16838,17 @@ struct MetricsTests {
         } else {
             existingSelectionSource = ""
         }
-        let existingStyleSync = "self.selectedID = nil\n        color = style.color\n"
-            + "        stroke = style.stroke\n        arrowStyle = style.arrowStyle"
-        expect(existingSelectionSource.contains("let style = ScreenshotSupport.selectionStyle(for: hit)")
-                && existingSelectionSource.contains(existingStyleSync),
+        expect(existingSelectionSource.contains("syncControls(to: hit)"),
                "creation-tool taps synchronize controls before selecting the annotation")
+        let finishSelectionSource: String
+        if let start = screenshotEditorSource.range(of: "private func finishSelectDrag"),
+           let end = screenshotEditorSource.range(of: "private func selectExistingAnnotation") {
+            finishSelectionSource = String(screenshotEditorSource[start.lowerBound..<end.lowerBound])
+        } else {
+            finishSelectionSource = ""
+        }
+        expect(finishSelectionSource.contains("syncControls(to: hit)"),
+               "selection-tool taps synchronize controls for every selected mark")
         expect(abs(ScreenshotSupport.distance(from: CGPoint(x: 50, y: 10),
                                               toSegment: CGPoint(x: 0, y: 0),
                                               CGPoint(x: 100, y: 0)) - 10) < 0.001,

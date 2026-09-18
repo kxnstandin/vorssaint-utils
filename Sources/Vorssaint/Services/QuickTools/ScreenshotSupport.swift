@@ -1342,15 +1342,30 @@ enum ScreenshotSupport {
 
     /// The style values the editor controls should show for a picked mark.
     struct SelectionStyle: Equatable {
-        let color: ColorID
-        let stroke: StrokeID
-        let arrowStyle: ArrowStyleID
+        let color: ColorID?
+        let stroke: StrokeID?
+        let arrowStyle: ArrowStyleID?
     }
 
     static func selectionStyle(for annotation: Annotation) -> SelectionStyle {
-        SelectionStyle(color: annotation.color,
-                       stroke: annotation.stroke,
-                       arrowStyle: annotation.arrowStyle)
+        switch annotation.tool {
+        case .arrow:
+            return SelectionStyle(color: annotation.color,
+                                  stroke: annotation.stroke,
+                                  arrowStyle: annotation.arrowStyle)
+        case .line, .rect, .ellipse, .freehand, .text:
+            return SelectionStyle(color: annotation.color,
+                                  stroke: annotation.stroke,
+                                  arrowStyle: nil)
+        case .highlight, .counter, .redact:
+            return SelectionStyle(color: annotation.color,
+                                  stroke: nil,
+                                  arrowStyle: nil)
+        case .sticker, .pixelate, .select, .crop:
+            return SelectionStyle(color: nil,
+                                  stroke: nil,
+                                  arrowStyle: nil)
+        }
     }
 
     /// Which way a selected annotation moves through the drawing order.
