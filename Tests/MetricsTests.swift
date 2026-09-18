@@ -16803,6 +16803,54 @@ struct MetricsTests {
                 && stableScribble != differentScribble
                 && stableScribble.shaft.count > 2,
                "scribbly arrows vary by seed but keep one stable design when redrawn")
+        expect(ScreenshotSupport.arrowStrokePath(from: .zero, to: CGPoint(x: 100, y: 0),
+                                                 strokeWidth: 4, style: .filled, seed: 0) == nil
+                && arrowStyles.filter { $0 != .filled }.allSatisfy {
+                    ScreenshotSupport.arrowStrokePath(from: .zero, to: CGPoint(x: 100, y: 0),
+                                                      strokeWidth: 4, style: $0, seed: 17)?
+                        .boundingBox.width ?? 0 >= 100
+                },
+               "the solid arrow is a filled silhouette and every other style is one stroked path")
+        // With shadows on, a shaft pixel under the head's shadow must match a
+        // shaft pixel far from the head: the head and the shaft are one
+        // stroke, so the head never shades the shaft where they meet.
+        let seamShaft: [ScreenshotSupport.ArrowStyleID: Bool] = Dictionary(
+            uniqueKeysWithValues: [ScreenshotSupport.ArrowStyleID.open, .doubleEnded].map { style in
+                let width = 160, height = 80
+                var pixels = [UInt8](repeating: 0, count: width * height * 4)
+                let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+                    guard let context = CGContext(data: buffer.baseAddress,
+                                                  width: width,
+                                                  height: height,
+                                                  bitsPerComponent: 8,
+                                                  bytesPerRow: width * 4,
+                                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                    else { return false }
+                    context.translateBy(x: 0, y: CGFloat(height))
+                    context.scaleBy(x: 1, y: -1)
+                    ScreenshotRenderer.drawAnnotations(
+                        [ScreenshotSupport.Annotation(tool: .arrow,
+                                                      points: [CGPoint(x: 20, y: 40), CGPoint(x: 140, y: 40)],
+                                                      color: .green,
+                                                      stroke: .large,
+                                                      arrowStyle: style)],
+                        in: context,
+                        pixelated: nil,
+                        imageSize: CGSize(width: width, height: height),
+                        scale: 2,
+                        annotationShadowsEnabled: true)
+                    return true
+                }
+                // Rows are stored top-down, the same way the flipped context draws.
+                func pixel(_ x: Int, _ y: Int) -> ArraySlice<UInt8> {
+                    let offset = (y * width + x) * 4
+                    return pixels[offset..<offset + 4]
+                }
+                return (style, drawn && pixel(120, 40) == pixel(60, 40) && pixel(60, 40).last == 255)
+            })
+        expect(seamShaft.values.allSatisfy { $0 },
+               "a stroked arrow's head casts no shadow onto its own shaft")
         let thickArrow = ScreenshotSupport.Annotation(tool: .arrow, stroke: .large)
         let thinArrow = ScreenshotSupport.Annotation(tool: .arrow, stroke: .small)
         expect(ScreenshotSupport.selectionStyle(for: thinArrow).stroke == .some(.small)

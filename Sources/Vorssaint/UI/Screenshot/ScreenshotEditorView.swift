@@ -19,7 +19,6 @@ struct ScreenshotEditorView: View {
     @State private var backdropPopoverShown = false
     @State private var hoveredTool: ScreenshotSupport.Tool?
     @State private var toolOptionsShown = false
-    @State private var arrowStylePopoverShown = false
     @State private var sharing = false
     @State private var sharedRecord: ScreenshotShareRecord?
     @AppStorage(DefaultsKey.screenshotToolOrder) private var toolOrderRaw =
@@ -933,50 +932,38 @@ struct ScreenshotEditorView: View {
         .shadow(color: .black.opacity(0.16), radius: 12, y: 3)
     }
 
+    /// The same kind of menu as the sticker picker: an inline picker gives
+    /// each style a native row with a checkmark, and the sample images come
+    /// from the editor's own renderer, so the menu shows exactly what draws.
     private var arrowStyleMenu: some View {
-        Button {
-            arrowStylePopoverShown.toggle()
+        Menu {
+            Picker(strings.arrowStyleLabel, selection: $model.arrowStyle) {
+                ForEach(ScreenshotSupport.ArrowStyleID.allCases, id: \.self) { style in
+                    Label {
+                        Text(strings.arrowStyleTitle(style))
+                    } icon: {
+                        Image(nsImage: ScreenshotArrowStyleSamples.image(for: style))
+                    }
+                    .tag(style)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
         } label: {
-            HStack(spacing: 4) {
-                ScreenshotArrowStylePreview(style: model.arrowStyle)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+            HStack(spacing: 5) {
+                Image(nsImage: ScreenshotArrowStyleSamples.image(for: model.arrowStyle))
+                    .renderingMode(.template)
+                Text(strings.arrowStyleTitle(model.arrowStyle))
+                    .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 7)
             .frame(height: 24)
         }
-        .buttonStyle(.borderless)
+        .menuStyle(.borderlessButton)
         .fixedSize()
         .screenshotSafeHelp(strings.arrowStyleLabel)
         .accessibilityLabel(strings.arrowStyleLabel)
-        .popover(isPresented: $arrowStylePopoverShown, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(ScreenshotSupport.ArrowStyleID.allCases, id: \.self) { style in
-                    Button {
-                        model.arrowStyle = style
-                        arrowStylePopoverShown = false
-                    } label: {
-                        HStack(spacing: 10) {
-                            ScreenshotArrowStylePreview(style: style)
-                            Text(strings.arrowStyleTitle(style))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            if model.arrowStyle == style {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .frame(height: 34)
-                        .contentShape(RoundedRectangle(cornerRadius: 7,
-                                                       style: .continuous))
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-            .padding(8)
-            .frame(width: 190)
-        }
     }
 
     private var stickerMenu: some View {
@@ -1384,116 +1371,57 @@ extension ScreenshotSupport.Tool {
     }
 }
 
-private struct ScreenshotArrowStylePreview: View {
-    let style: ScreenshotSupport.ArrowStyleID
+/// Small samples of each arrow style, drawn by the editor's own renderer so
+/// the menu and the toolbar show exactly what a stroke will look like. They
+/// are templates, so menus tint them like their text.
+private enum ScreenshotArrowStyleSamples {
+    private static let images: [ScreenshotSupport.ArrowStyleID: NSImage] = Dictionary(
+        uniqueKeysWithValues: ScreenshotSupport.ArrowStyleID.allCases.map { ($0, render($0)) })
 
-    private static let size = CGSize(width: 48, height: 28)
-    private static let start = CGPoint(x: 5, y: size.height / 2)
-    private static let end = CGPoint(x: 43, y: size.height / 2)
-    // Keep the selector sample lighter than the full-size annotation.
-    private static let strokeWidth: CGFloat = 2
-
-    private var head: (left: CGPoint, right: CGPoint) {
-        ScreenshotSupport.arrowHead(from: Self.start,
-                                    to: Self.end,
-                                    strokeWidth: Self.strokeWidth)
+    static func image(for style: ScreenshotSupport.ArrowStyleID) -> NSImage {
+        images[style] ?? render(style)
     }
 
-    private var tailHead: (left: CGPoint, right: CGPoint) {
-        ScreenshotSupport.arrowHead(from: Self.end,
-                                    to: Self.start,
-                                    strokeWidth: Self.strokeWidth)
-    }
-
-    private var scribblyGeometry: ScreenshotSupport.ScribblyArrowGeometry {
-        ScreenshotSupport.scribblyArrowGeometry(from: Self.start,
-                                                to: Self.end,
-                                                strokeWidth: Self.strokeWidth,
-                                                seed: 0x5343524942424C59)
-    }
-
-    private var arrowColor: Color { .primary }
-
-    var body: some View {
-        ZStack {
-            switch style {
-            case .filled:
-                Path(ScreenshotSupport.arrowSilhouette(from: Self.start,
-                                                       to: Self.end,
-                                                       strokeWidth: Self.strokeWidth))
-                    .fill(arrowColor)
-            case .outline:
-                shaftPath(to: arrowBase(head))
-                    .stroke(arrowColor, style: strokeStyle)
-                outlineHeadPath(head)
-                    .stroke(arrowColor, style: strokeStyle)
-            case .open:
-                shaftPath(to: Self.end)
-                    .stroke(arrowColor, style: strokeStyle)
-                openHeadPath(tip: Self.end, head: head)
-                    .stroke(arrowColor, style: strokeStyle)
-            case .doubleEnded:
-                shaftPath(to: Self.end)
-                    .stroke(arrowColor, style: strokeStyle)
-                openHeadPath(tip: Self.end, head: head)
-                    .stroke(arrowColor, style: strokeStyle)
-                openHeadPath(tip: Self.start, head: tailHead)
-                    .stroke(arrowColor, style: strokeStyle)
-            case .scribbly:
-                polylinePath(scribblyGeometry.shaft)
-                    .stroke(arrowColor, style: strokeStyle)
-                polylinePath(scribblyGeometry.leftWing)
-                    .stroke(arrowColor, style: strokeStyle)
-                polylinePath(scribblyGeometry.rightWing)
-                    .stroke(arrowColor, style: strokeStyle)
-            }
-        }
-        .frame(width: Self.size.width, height: Self.size.height)
-        .accessibilityHidden(true)
-    }
-
-    private var strokeStyle: StrokeStyle {
-        StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round, lineJoin: .round)
-    }
-
-    private func arrowBase(_ head: (left: CGPoint, right: CGPoint)) -> CGPoint {
-        CGPoint(x: (head.left.x + head.right.x) / 2,
-                y: (head.left.y + head.right.y) / 2)
-    }
-
-    private func shaftPath(to endpoint: CGPoint) -> Path {
-        Path { path in
-            path.move(to: Self.start)
-            path.addLine(to: endpoint)
-        }
-    }
-
-    private func outlineHeadPath(_ head: (left: CGPoint, right: CGPoint)) -> Path {
-        Path { path in
-            path.move(to: head.left)
-            path.addLine(to: Self.end)
-            path.addLine(to: head.right)
-            path.closeSubpath()
-        }
-    }
-
-    private func openHeadPath(tip: CGPoint,
-                              head: (left: CGPoint, right: CGPoint)) -> Path {
-        Path { path in
-            path.move(to: head.left)
-            path.addLine(to: tip)
-            path.addLine(to: head.right)
-        }
-    }
-
-    private func polylinePath(_ points: [CGPoint]) -> Path {
-        Path { path in
-            guard let first = points.first else { return }
-            path.move(to: first)
-            for point in points.dropFirst() {
-                path.addLine(to: point)
-            }
-        }
+    private static func render(_ style: ScreenshotSupport.ArrowStyleID) -> NSImage {
+        let size = NSSize(width: 36, height: 16)
+        let image = NSImage(size: size)
+        image.isTemplate = true
+        // Rasterized at 2x so the sample stays crisp on Retina displays.
+        let scale: CGFloat = 2
+        let pixels = CGSize(width: size.width * scale, height: size.height * scale)
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                            pixelsWide: Int(pixels.width),
+                                            pixelsHigh: Int(pixels.height),
+                                            bitsPerSample: 8,
+                                            samplesPerPixel: 4,
+                                            hasAlpha: true,
+                                            isPlanar: false,
+                                            colorSpaceName: .deviceRGB,
+                                            bytesPerRow: 0,
+                                            bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap)?.cgContext
+        else { return image }
+        bitmap.size = size
+        // The renderer works in top-down image pixels.
+        context.translateBy(x: 0, y: pixels.height)
+        context.scaleBy(x: 1, y: -1)
+        // A thin sample; the fixed seed keeps the scribbly one stable.
+        let sample = ScreenshotSupport.Annotation(
+            tool: .arrow,
+            points: [CGPoint(x: 3 * scale, y: pixels.height / 2),
+                     CGPoint(x: pixels.width - 3 * scale, y: pixels.height / 2)],
+            color: .black,
+            stroke: .small,
+            arrowStyle: style,
+            scribbleSeed: 0x5343524942424C59)
+        ScreenshotRenderer.drawAnnotations([sample],
+                                           in: context,
+                                           pixelated: nil,
+                                           imageSize: pixels,
+                                           scale: scale,
+                                           annotationShadowsEnabled: false)
+        image.addRepresentation(bitmap)
+        return image
     }
 }
 
