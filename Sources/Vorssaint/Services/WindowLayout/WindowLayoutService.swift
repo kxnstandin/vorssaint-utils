@@ -107,6 +107,7 @@ final class WindowLayoutService: ObservableObject {
 
         let wantsEdgeSnap = available
             && UserDefaults.standard.bool(forKey: DefaultsKey.windowEdgeSnapEnabled)
+            && !enabledEdgeSnapZones.isEmpty
             && !WindowEdgeSnapSupport.isSystemTilingEnabled
             && trusted
         wantsEdgeSnap ? startEdgeSnapTap() : stopEdgeSnapTap()
@@ -134,20 +135,32 @@ final class WindowLayoutService: ObservableObject {
         shortcutConflictTitle(shortcut, excluding: nil)
     }
 
-    func shortcutConflictTitle(_ shortcut: GlobalShortcut, excluding excluded: WindowLayoutAction?) -> String? {
-        guard AppFeature.windowLayout.isAvailable,
-              UserDefaults.standard.bool(forKey: DefaultsKey.windowLayoutShortcutsEnabled) else { return nil }
-        let text = FeatureStrings.windowLayout(L10n.shared.language)
-        return WindowLayoutAction.shortcutActions.first {
-            $0 != excluded && $0.savedShortcut == shortcut
-        }?.title(text)
+    func shortcutConflictTitle(_ shortcut: GlobalShortcut, excluding excluded: WindowLayoutAction?,
+                               includingDirectional: Bool = true) -> String? {
+        guard AppFeature.windowLayout.isAvailable else { return nil }
+        let actionsEnabled = UserDefaults.standard.bool(forKey: DefaultsKey.windowLayoutShortcutsEnabled)
+        let directional = includingDirectional
+            && UserDefaults.standard.bool(forKey: DefaultsKey.windowDirectionalEnabled)
+            ? UserDefaults.standard.string(forKey: DefaultsKey.windowDirectionalShortcut)
+                .flatMap(GlobalShortcut.init(storageValue:)) : nil
+        guard actionsEnabled || directional != nil else { return nil }
+        switch WindowLayoutShortcutConflict.find(shortcut, directional: directional,
+                                                 excluding: excluded,
+                                                 actionShortcut: { actionsEnabled ? $0.savedShortcut : nil }) {
+        case .directional:
+            return WindowDirectionalStrings.localized(L10n.shared.language).title
+        case .action(let action):
+            return action.title(FeatureStrings.windowLayout(L10n.shared.language))
+        case nil:
+            return nil
+        }
     }
 
     func directionalShortcutConflictTitle(_ shortcut: GlobalShortcut) -> String? {
         if let role = GlobalShortcutRole.conflict(for: shortcut, excluding: nil) {
             return role.title(L10n.shared.s)
         }
-        return shortcutConflictTitle(shortcut)
+        return shortcutConflictTitle(shortcut, excluding: nil, includingDirectional: false)
     }
 
     @discardableResult
@@ -584,8 +597,8 @@ final class WindowLayoutService: ObservableObject {
 
     private func shouldUseMaximizeFallback(for action: WindowLayoutAction) -> Bool {
         switch action {
-        case .leftHalf, .rightHalf, .topHalf, .bottomHalf,
-                .leftThird, .centerThird, .rightThird, .leftTwoThirds, .rightTwoThirds,
+        case .leftHalf, .rightHalf, .topHalf, .bottomHalf, .centerHalf,
+                .leftThird, .centerThird, .rightThird, .leftTwoThirds, .rightTwoThirds, .centerTwoThirds,
                 .topLeftSixth, .topCenterSixth, .topRightSixth,
                 .bottomLeftSixth, .bottomCenterSixth, .bottomRightSixth,
                 .topLeft, .topRight, .bottomLeft, .bottomRight, .marginMaximize:
@@ -666,6 +679,7 @@ final class WindowLayoutService: ObservableObject {
                                              &ref)
             if status == noErr, let ref {
                 hotKeyRefs[action] = ref
+                SystemShortcutTakeover.claim(action.shortcutKey, shortcut: shortcut)
             } else {
                 failures.insert(action)
             }
@@ -716,8 +730,9 @@ final class WindowLayoutService: ObservableObject {
     func suspendShortcuts() { unregisterHotkeys() }
 
     private func unregisterHotkeys() {
-        for ref in hotKeyRefs.values {
+        for (action, ref) in hotKeyRefs {
             UnregisterEventHotKey(ref)
+            SystemShortcutTakeover.release(action.shortcutKey)
         }
         hotKeyRefs.removeAll()
         registeredShortcuts.removeAll()
@@ -741,13 +756,17 @@ final class WindowLayoutService: ObservableObject {
             directionalHotKeyRef = ref
             registeredDirectionalShortcut = shortcut
             directionalShortcutRegistrationFailed = false
+            SystemShortcutTakeover.claim(DefaultsKey.windowDirectionalShortcut, shortcut: shortcut)
         } else {
             directionalShortcutRegistrationFailed = true
         }
     }
 
     private func unregisterDirectionalHotkey() {
-        if let directionalHotKeyRef { UnregisterEventHotKey(directionalHotKeyRef) }
+        if let directionalHotKeyRef {
+            UnregisterEventHotKey(directionalHotKeyRef)
+            SystemShortcutTakeover.release(DefaultsKey.windowDirectionalShortcut)
+        }
         directionalHotKeyRef = nil
         registeredDirectionalShortcut = nil
         directionalShortcutRegistrationFailed = false
@@ -758,11 +777,12 @@ final class WindowLayoutService: ObservableObject {
         guard directionalSession == nil,
               let target = focusedTarget(for: .leftHalf),
               let screen = bestScreen(for: target.frame) else { return }
-        directionalSession = WindowDirectionalSession(target: target,
-                                                      visibleFrame: screen.visibleFrame,
-                                                      pointerOrigin: NSEvent.mouseLocation,
-                                                      action: nil,
-                                                      manualOverride: nil)
+        directionalSession = WindowDirectionalSession(
+            target: target,
+            visibleFrame: screen.visibleFrame,
+            pointerOrigin: NSEvent.mouseLocation,
+            action: nil,
+            manualOverride: nil)
         showDirectionalIndicator(at: NSEvent.mouseLocation, action: nil)
         directionalTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) {
             [weak self] _ in self?.updateDirectionalGesture()
@@ -840,19 +860,26 @@ final class WindowLayoutService: ObservableObject {
 
         if type == .keyDown {
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+            let allowManual = WindowDirectionalGestureSupport.shouldApplyKeyboardManualOverride(
+                isAutorepeat: isAutorepeat)
             if keyCode == 49 || keyCode == 36 || keyCode == 126 { // Space, Return, Up
-                session.manualOverride = .maximize
-                directionalSession = session
-                updateDirectionalIndicator(action: .maximize)
-                let preview = placement(for: .maximize, current: session.target.frame,
-                                        visibleFrame: session.visibleFrame).rect
-                showEdgeSnapPreview(frame: preview)
+                if allowManual {
+                    session.manualOverride = .maximize
+                    directionalSession = session
+                    updateDirectionalIndicator(action: .maximize)
+                    let preview = placement(for: .maximize, current: session.target.frame,
+                                            visibleFrame: session.visibleFrame).rect
+                    showEdgeSnapPreview(frame: preview)
+                }
                 return nil
             } else if keyCode == 46 || keyCode == 125 { // M, Down
-                session.manualOverride = .minimize
-                directionalSession = session
-                updateDirectionalIndicator(action: .minimize)
-                hideEdgeSnapPreview(immediately: true)
+                if allowManual {
+                    session.manualOverride = .minimize
+                    directionalSession = session
+                    updateDirectionalIndicator(action: .minimize)
+                    hideEdgeSnapPreview(immediately: true)
+                }
                 return nil
             } else if keyCode == 53 { // Escape
                 cancelDirectionalGesture()
@@ -1080,7 +1107,8 @@ final class WindowLayoutService: ObservableObject {
                drag.protectsSystemTopEdge {
                 event.location = WindowEdgeSnapSupport.locationAvoidingSystemTopDrag(
                     originalLocation,
-                    screenFrames: drag.quartzScreenFrames
+                    screenFrames: drag.quartzScreenFrames,
+                    enabledZones: drag.enabledZones
                 )
             }
         case .leftMouseUp:
@@ -1099,6 +1127,7 @@ final class WindowLayoutService: ObservableObject {
             edgeSnapSequenceSuppressed = false
             guard AppFeature.windowLayout.isAvailable,
                   UserDefaults.standard.bool(forKey: DefaultsKey.windowEdgeSnapEnabled),
+                  !enabledEdgeSnapZones.isEmpty,
                   !WindowEdgeSnapSupport.isSystemTilingEnabled,
                   AXIsProcessTrusted(),
                   !edgeSnapConflictsWithWindowGesture(flags: flags)
@@ -1238,6 +1267,7 @@ final class WindowLayoutService: ObservableObject {
                                   pointerStart: pointerStart,
                                   protectsSystemTopEdge: WindowEdgeSnapSupport.isSystemTopWindowOverviewDragEnabled,
                                   quartzScreenFrames: edgeSnapQuartzScreenFrames(),
+                                  enabledZones: enabledEdgeSnapZones,
                                   lastSampleAt: 0,
                                   mismatchCount: 0,
                                   isMoving: false,
@@ -1297,7 +1327,8 @@ final class WindowLayoutService: ObservableObject {
             WindowEdgeSnapScreen(frame: $0.frame, visibleFrame: $0.visibleFrame)
         }
         return WindowEdgeSnapSupport.target(at: appKitPoint,
-                                            screens: screens)
+                                            screens: screens,
+                                            enabledZones: enabledEdgeSnapZones)
     }
 
     private func edgeSnapQuartzScreenFrames() -> [CGRect] {
@@ -1314,6 +1345,7 @@ final class WindowLayoutService: ObservableObject {
                                target: WindowEdgeSnapTarget) {
         guard AppFeature.windowLayout.isAvailable,
               UserDefaults.standard.bool(forKey: DefaultsKey.windowEdgeSnapEnabled),
+              enabledEdgeSnapZones.contains(target.zone),
               !WindowEdgeSnapSupport.isSystemTilingEnabled,
               AXIsProcessTrusted(),
               canSetFrame(on: drag.window),
@@ -1345,6 +1377,12 @@ final class WindowLayoutService: ObservableObject {
         edgeSnapResolveAttempts = 0
         edgeSnapDrag = nil
         hideEdgeSnapPreview(immediately: false)
+    }
+
+    private var enabledEdgeSnapZones: Set<WindowEdgeSnapZone> {
+        WindowEdgeSnapZone.enabledZones(
+            from: UserDefaults.standard.string(forKey: DefaultsKey.windowEdgeSnapDisabledZones)
+        )
     }
 
     private func showEdgeSnapPreview(frame: CGRect) {
@@ -2331,6 +2369,7 @@ private struct WindowEdgeSnapDrag {
     let pointerStart: CGPoint
     let protectsSystemTopEdge: Bool
     let quartzScreenFrames: [CGRect]
+    let enabledZones: Set<WindowEdgeSnapZone>
     var lastSampleAt: TimeInterval
     var mismatchCount: Int
     var isMoving: Bool

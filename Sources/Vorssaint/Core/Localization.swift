@@ -23,6 +23,11 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Whether this language puts a distinct form between one and many. Only
+    /// Russian, of the thirteen: two through four take a form of their own,
+    /// so "2 файла" and not "2 файлов".
+    var usesFewCountForm: Bool { self == .ru }
+
     /// The language's own name, shown in its own script, the way macOS lists them.
     var displayName: String {
         switch self {
@@ -122,6 +127,16 @@ struct Strings {
     let menuEdit: String
     let menuUndo: String
     let menuRedo: String
+    /// Named actions an icon-only control borrows so it can say what it
+    /// does. No feature owns these, because half a dozen already share them.
+    let actionClear: String
+    let actionRemove: String
+    let actionBack: String
+    let actionSearch: String
+    let actionMute: String
+    let actionUnmute: String
+    let actionPlay: String
+    let actionPause: String
     let menuCut: String
     let menuCopy: String
     let menuPaste: String
@@ -218,6 +233,8 @@ struct Strings {
     let tabAbout: String
     let tabReleaseNotes: String
     let releaseNotesOnUpdateToggle: String
+    let minimalWindowPreviews: String
+    let minimalWindowPreviewsCaption: String
     let previewSizeLabel: String
     let previewSizeNormal: String
     let previewSizeLarge: String
@@ -341,12 +358,15 @@ struct Strings {
     let dockPreviewName: String
     let dockPreviewEnable: String
     let dockPreviewEnableCaption: String
+    let dockPreviewCurrentSpaceOnlyCaption: String
     let dockPreviewBackgroundOpacity: String
     let dockPreviewBackgroundOpacityCaption: String
     let dockPreviewOpenDelay: String
     let dockPreviewOpenDelayCaption: String
     let dockPreviewQuitAppOnClose: String
     let dockPreviewQuitAppOnCloseCaption: String
+    let dockPreviewOrderByCreation: String
+    let dockPreviewOrderByCreationCaption: String
     let dockClickMinimize: String
     let dockClickMinimizeCaption: String
     let dockClickCycleWindows: String
@@ -439,6 +459,11 @@ struct Strings {
     let uninstallerCatLogs: String
     let uninstallerCatState: String
     let uninstallerCatOther: String
+    let uninstallerCommandBarBrowseTitle: String
+    let uninstallerCommandBarToggle: String
+    let uninstallerCommandBarCaption: String
+    let uninstallerCommandBarFinderTitle: String
+    let uninstallerSelectionUnavailable: String
 
     // MARK: Feature — URL cleaner
     let urlCleanerName: String
@@ -570,6 +595,9 @@ struct Strings {
     let mediaCompressionLow: String
     let mediaCompressionMedium: String
     let mediaCompressionHigh: String
+    let mediaCompressionLowDescription: String
+    let mediaCompressionMediumDescription: String
+    let mediaCompressionHighDescription: String
     let mediaMaxSize: String
     let mediaSizingResolution: String
     let mediaSizingFileSize: String
@@ -643,14 +671,24 @@ struct Strings {
     let shelfSelectedFormat: String      // + count
     let shelfHint: String
     let shelfItemImage: String
-    let shelfTooltipItemsFormat: String      // + count, always plural: a pile always has 2+
+    // Three forms, not two: Russian agrees a noun with the number in front of
+    // it as one, as two through four, and as five or more. Every other
+    // language here needs only the first and the last, and repeats the last
+    // in the middle slot. A pile always holds two or more, so the items count
+    // has no singular of its own.
+    let shelfTooltipItemsFormat: String      // + count, five or more
+    let shelfTooltipItemsFew: String         // + count, two through four
     let shelfTooltipImageSingular: String    // + count == 1
+    let shelfTooltipImageFew: String         // + count, two through four
     let shelfTooltipImagePlural: String      // + count
     let shelfTooltipFileSingular: String     // + count == 1
+    let shelfTooltipFileFew: String          // + count, two through four
     let shelfTooltipFilePlural: String       // + count
     let shelfTooltipNoteSingular: String     // + count == 1
+    let shelfTooltipNoteFew: String          // + count, two through four
     let shelfTooltipNotePlural: String       // + count
     let shelfTooltipLinkSingular: String     // + count == 1
+    let shelfTooltipLinkFew: String          // + count, two through four
     let shelfTooltipLinkPlural: String       // + count
     let shelfActionOpen: String
     let shelfActionOpenWith: String
@@ -727,6 +765,13 @@ struct Strings {
     let permissionOpenSettings: String
     let permissionRequest: String
     let permissionRestartNote: String
+
+    // MARK: Secure input
+    let secureInputTitle: String
+    let secureInputHeldFormat: String
+    let secureInputUnattributed: String
+    let secureInputUnidentified: String
+    let secureInputRevealFormat: String
 
     // MARK: About
     let aboutDescription: String
@@ -999,6 +1044,10 @@ struct Strings {
     let shortcutDeleteHint: String
     let shortcutNotCaptured: String
     let shortcutConflictFormat: String
+    let shortcutTakeOverOffer: String
+    let shortcutTakeOverAction: String
+    let shortcutTakeOverCaption: String
+    let shortcutTakeOverDismiss: String
     let shortcutUnavailable: String
     let shelfShortcutToggle: String
     let switcherUsageHintFormat: String
@@ -1114,6 +1163,10 @@ struct Strings {
     let switcherSearchPinCaption: String
     let invertVerticalScroll: String
     let invertHorizontalScroll: String
+    let scrollHorizontalName: String
+    let scrollHorizontalModifierLabel: String
+    let scrollHorizontalCommandKey: String
+    let scrollHorizontalCaption: String
     let switcherShowShortcutHints: String
     let switcherShowShortcutHintsCaption: String
     let uninstallerHomebrewPackageFormat: String
@@ -1132,6 +1185,8 @@ struct Strings {
     let switcherScreenPlacementMenuBar: String
     let switcherScreenPlacementActiveWindow: String
     let switcherScreenPlacementCaption: String
+    let switcherCurrentDisplayOnly: String
+    let switcherCurrentDisplayOnlyCaption: String
     let smoothScrollResponseLabel: String
     let mouseAccelerationName: String
     let mouseAccelerationCaption: String
@@ -1158,6 +1213,14 @@ extension Strings {
         menuEdit: "Editar",
         menuUndo: "Desfazer",
         menuRedo: "Refazer",
+        actionClear: "Limpar",
+        actionRemove: "Remover",
+        actionBack: "Voltar",
+        actionSearch: "Buscar",
+        actionMute: "Silenciar",
+        actionUnmute: "Reativar som",
+        actionPlay: "Reproduzir",
+        actionPause: "Pausar",
         menuCut: "Recortar",
         menuCopy: "Copiar",
         menuPaste: "Colar",
@@ -1246,6 +1309,8 @@ extension Strings {
         tabAbout: "Sobre",
         tabReleaseNotes: "Novidades",
         releaseNotesOnUpdateToggle: "Mostrar novidades ao atualizar",
+        minimalWindowPreviews: "Prévias minimalistas",
+        minimalWindowPreviewsCaption: "Oculta títulos, botões e detalhes decorativos nas prévias do Dock e do alternador. A seleção continua visível.",
         previewSizeLabel: "Tamanho dos previews",
         previewSizeNormal: "Normal",
         previewSizeLarge: "Grande",
@@ -1363,12 +1428,15 @@ extension Strings {
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Pré-visualizar janelas no Dock",
         dockPreviewEnableCaption: "Passe o mouse em um app aberto no Dock para ver suas janelas e clique na que quiser abrir.",
+        dockPreviewCurrentSpaceOnlyCaption: "Quando desligado, mostra janelas de todas as mesas. Escolher uma janela em outra mesa leva você até ela.",
         dockPreviewBackgroundOpacity: "Fundo do painel",
         dockPreviewBackgroundOpacityCaption: "Diminua para ver mais do que está atrás do painel.",
         dockPreviewOpenDelay: "Atraso de abertura",
         dockPreviewOpenDelayCaption: "Quanto tempo o ponteiro precisa ficar sobre um ícone antes de o painel abrir.",
         dockPreviewQuitAppOnClose: "Encerrar o app com o botão ×",
         dockPreviewQuitAppOnCloseCaption: "No Dock Preview, × encerra o app inteiro em vez de fechar apenas aquela janela.",
+        dockPreviewOrderByCreation: "Ordenar janelas por criação",
+        dockPreviewOrderByCreationCaption: "Mostra primeiro as janelas mais antigas em vez das usadas mais recentemente.",
         dockClickMinimize: "Clicar no Dock minimiza",
         dockClickMinimizeCaption: "As janelas do app ativo são minimizadas ao clicar no ícone dele no Dock. Clique de novo para trazê-las de volta.",
         dockClickCycleWindows: "Clicar no Dock alterna janelas",
@@ -1458,6 +1526,11 @@ extension Strings {
         uninstallerCatLogs: "Logs",
         uninstallerCatState: "Estado salvo",
         uninstallerCatOther: "Outros",
+        uninstallerCommandBarBrowseTitle: "Desinstalar aplicativo",
+        uninstallerCommandBarToggle: "Mostrar na Barra de Comandos",
+        uninstallerCommandBarCaption: "Permite escolher e desinstalar aplicativos pela Barra de Comandos.",
+        uninstallerCommandBarFinderTitle: "Desinstalar aplicativo selecionado no Finder",
+        uninstallerSelectionUnavailable: "Selecione um aplicativo que possa ser removido no Finder ou escolha outro na lista.",
 
         urlCleanerName: "Limpar URL",
         urlCleanerEnable: "Limpar URLs ao copiar",
@@ -1548,13 +1621,13 @@ extension Strings {
         homebrewOperationUpdatedHomebrew: "Homebrew atualizado.",
         homebrewOperationFailedFormat: "Não foi possível concluir %@.",
         homebrewOperationCancelled: "Operação cancelada.",
-        homebrewOperationPreparing: "Preparando...",
-        homebrewOperationDownloading: "Baixando arquivos...",
-        homebrewOperationInstalling: "Instalando arquivos...",
-        homebrewOperationUninstalling: "Removendo arquivos...",
-        homebrewOperationUpgrading: "Atualizando arquivos...",
-        homebrewOperationFinalizing: "Finalizando...",
-        homebrewOperationRefreshing: "Atualizando lista...",
+        homebrewOperationPreparing: "Preparando…",
+        homebrewOperationDownloading: "Baixando arquivos…",
+        homebrewOperationInstalling: "Instalando arquivos…",
+        homebrewOperationUninstalling: "Removendo arquivos…",
+        homebrewOperationUpgrading: "Atualizando arquivos…",
+        homebrewOperationFinalizing: "Finalizando…",
+        homebrewOperationRefreshing: "Atualizando lista…",
         homebrewOperationTerminal: "Continue no Terminal.",
         homebrewOperationElapsedFormat: "%@ decorridos",
         homebrewOperationShowDetails: "Mostrar detalhes",
@@ -1586,6 +1659,9 @@ extension Strings {
         mediaCompressionLow: "Baixa",
         mediaCompressionMedium: "Média",
         mediaCompressionHigh: "Alta",
+        mediaCompressionLowDescription: "Alta qualidade, arquivo grande",
+        mediaCompressionMediumDescription: "Equilíbrio entre qualidade e tamanho do arquivo",
+        mediaCompressionHighDescription: "Baixa qualidade, arquivo pequeno",
         mediaMaxSize: "Tamanho",
         mediaSizingResolution: "Resolução",
         mediaSizingFileSize: "Tamanho do arquivo",
@@ -1659,13 +1735,18 @@ extension Strings {
         shelfHint: "Clique para selecionar. Arraste para usar ou clique com o botão direito para mais ações.",
         shelfItemImage: "Imagem",
         shelfTooltipItemsFormat: "%d itens",
+        shelfTooltipItemsFew: "%d itens",
         shelfTooltipImageSingular: "%d imagem",
+        shelfTooltipImageFew: "%d imagens",
         shelfTooltipImagePlural: "%d imagens",
         shelfTooltipFileSingular: "%d arquivo",
+        shelfTooltipFileFew: "%d arquivos",
         shelfTooltipFilePlural: "%d arquivos",
         shelfTooltipNoteSingular: "%d nota",
+        shelfTooltipNoteFew: "%d notas",
         shelfTooltipNotePlural: "%d notas",
         shelfTooltipLinkSingular: "%d link",
+        shelfTooltipLinkFew: "%d links",
         shelfTooltipLinkPlural: "%d links",
         shelfActionOpen: "Abrir",
         shelfActionOpenWith: "Abrir com",
@@ -1738,6 +1819,11 @@ extension Strings {
         permissionOpenSettings: "Abrir Ajustes do Sistema…",
         permissionRequest: "Conceder acesso",
         permissionRestartNote: "O macOS pode pedir para reabrir o app depois de conceder.",
+        secureInputTitle: "A entrada segura está ativa",
+        secureInputHeldFormat: "%@ está mantendo-a ativa, então o Vorssaint não consegue digitar por você. Saia do campo de senha do app, ou encerre-o, para liberá-la.",
+        secureInputUnattributed: "Nenhum app em execução a reivindica. Encerre a sessão e entre novamente para limpá-la.",
+        secureInputUnidentified: "Não foi possível identificar o app que a está mantendo ativa, então o Vorssaint não consegue digitar por você.",
+        secureInputRevealFormat: "Mostrar %@",
 
         aboutDescription: "Central de utilidades para o seu Mac.\nEnergia, monitor do sistema, rolagem e alternador de janelas, direto na barra de menus.",
         versionPrefix: "Versão",
@@ -1983,7 +2069,7 @@ extension Strings {
         updateShowcaseUnavailable: "Não foi possível carregar o vídeo agora. Você ainda pode continuar.",
         updateShowcaseRestart: "Voltar ao início",
         showMenuBarIcon: "Mostrar ícone na barra de menus",
-        showMenuBarIconCaption: "Se o ícone do Vorssaint sumir (o macOS pode esconder ícones quando a barra de menus fica sem espaço, comum em Macs com notch), reabra o Vorssaint pela pasta Aplicativos ou pelo Spotlight: isso recria o ícone e, se ele ainda estiver escondido, abre esta janela. O botão acima faz o mesmo quando você já consegue chegar aqui. Manter menos ícones na barra, ou menos métricas no Vorssaint, reduz bastante a chance.",
+        showMenuBarIconCaption: "Se o ícone do Vorssaint sumir (o macOS pode esconder ícones quando a barra de menus fica sem espaço, comum em Macs com notch), reabra o Vorssaint pela pasta Aplicativos ou pelo Spotlight: isso recria o ícone e, se ele ainda estiver escondido, abre esta janela.",
         menuBarIconStillHiddenTitle: "O ícone continua escondido",
         menuBarIconStillHiddenBody: "O ícone foi recriado, mas o macOS não deu um lugar visível a ele. A barra de menus provavelmente está sem espaço: remova alguns ícones da barra (ou feche apps com menus longos) e tente de novo.",
         menuBarIconManagerHintFormat: "O %@ está aberto e pode estar guardando o ícone na seção oculta dele. Procure o Vorssaint lá, ou configure o %@ para sempre mostrar o Vorssaint.",
@@ -1997,6 +2083,10 @@ extension Strings {
         shortcutDeleteHint: "Delete remove.",
         shortcutNotCaptured: "Nada foi capturado. O macOS ou outro app já usa essa combinação. Tente outra.",
         shortcutConflictFormat: "Este atalho já está em uso por %@.",
+        shortcutTakeOverOffer: "O macOS usa %@ em um atalho próprio.",
+        shortcutTakeOverAction: "Assumir enquanto o Vorssaint estiver aberto",
+        shortcutTakeOverCaption: "O macOS recupera a tecla sempre que o Vorssaint não estiver aberto ou este recurso estiver desligado.",
+        shortcutTakeOverDismiss: "Não assumir",
         shortcutUnavailable: "O macOS recusou este atalho. Escolha outro.",
         shelfShortcutToggle: "Atalho da área temporária",
         switcherUsageHintFormat: "Segure %@ para navegar; solte para ativar a janela. Shift ou ← volta; W fecha a janela; Q encerra o app; Esc cancela.",
@@ -2052,7 +2142,7 @@ extension Strings {
         cleanerNotifDenied: "As notificações do Vorssaint estão desativadas no sistema.",
         cleanerNotifOpenSettings: "Abrir Ajustes de Notificações…",
         launchAtLoginNeedsApplications: "O app está rodando de um lugar que não permite abrir no login. Arraste o Vorssaint para a pasta Aplicativos, abra de lá e ligue de novo.",
-        launchAtLoginNeedsApproval: "O item de login está registrado, mas continua desligado nos Ajustes do Sistema. Abra Ajustes do Sistema › Geral › Itens de Início e Extensões e ligue o Vorssaint em «Abrir ao iniciar sessão».",
+        launchAtLoginNeedsApproval: "O item de login está registrado, mas continua desligado nos Ajustes do Sistema. Abra Ajustes do Sistema › Geral › Itens de Início e Extensões e ligue o Vorssaint em “Abrir ao iniciar sessão”.",
         ocrRemoveLineBreaksToggle: "Remover quebras de linha",
         ocrRemoveLineBreaksCaption: "Remove as quebras de linha para que o texto copiado seja colado como um único parágrafo.",
         ocrQRToggle: "Ler QR codes",
@@ -2093,7 +2183,7 @@ extension Strings {
         keepAwakeRightClickToggleCaption: "Substitui o menu de contexto do clique com o botão direito.",
         urlCleanerRulesTitle: "Regras de limpeza",
         urlCleanerRulesCaption: "Um site anexa estes parâmetros aos próprios links de compartilhamento para rastrear de onde o link veio. Ligado, o nome é removido ao limpar um link; desligado, ele permanece. Os nomes que você adicionar podem ser excluídos.",
-        urlCleanerRulesCoverageCaption: "A lista cobre os diferentes caminhos de compartilhamento de um site — a página, o app, uma sala ao vivo — por isso é longa; um link real costuma carregar apenas dois a quatro deles.",
+        urlCleanerRulesCoverageCaption: "A lista cobre os diferentes caminhos de compartilhamento de um site (a página, o app, uma sala ao vivo), por isso é longa; um link real costuma carregar apenas dois a quatro deles.",
         urlCleanerRulesAllSites: "Todos os sites",
         urlCleanerRulesCountSingular: "1 parâmetro",
         urlCleanerRulesCountPluralFormat: "%d parâmetros",
@@ -2108,6 +2198,10 @@ extension Strings {
         switcherSearchPinCaption: "S inicia uma busca e fixa o alternador aberto, assim digitar não produz mais caracteres especiais quando o atalho usa ⌥, e uma busca que comece com Q ou W não fecha a janela nem encerra o app por engano.",
         invertVerticalScroll: "Inverter rolagem vertical",
         invertHorizontalScroll: "Inverter rolagem horizontal",
+        scrollHorizontalName: "Rolar na horizontal segurando uma tecla",
+        scrollHorizontalModifierLabel: "Tecla modificadora",
+        scrollHorizontalCommandKey: "Command",
+        scrollHorizontalCaption: "Mantenha apenas a tecla escolhida pressionada para rolar a roda vertical do mouse na horizontal. Outras combinações de teclas não são alteradas.",
         switcherShowShortcutHints: "Mostrar dicas de atalhos",
         switcherShowShortcutHintsCaption: "Exibe os atalhos de apps e janelas abaixo dos ícones.",
         uninstallerHomebrewPackageFormat: "%@ também será removido do Homebrew.",
@@ -2126,6 +2220,8 @@ extension Strings {
         switcherScreenPlacementMenuBar: "Tela com a barra de menus",
         switcherScreenPlacementActiveWindow: "Tela com a janela ativa",
         switcherScreenPlacementCaption: "Em qual tela o alternador abre quando há mais de uma conectada.",
+        switcherCurrentDisplayOnly: "Mostrar só a tela atual",
+        switcherCurrentDisplayOnlyCaption: "Mostra apenas as janelas da tela sob o cursor. Se essa tela não tiver janelas, o alternador não abre.",
         smoothScrollResponseLabel: "Resposta",
         mouseAccelerationName: "Desativar aceleração do mouse",
         mouseAccelerationCaption: "Remove a aceleração do cursor para os mouses conectados. A configuração anterior volta ao desligar esta opção ou sair do Vorssaint.",
@@ -2153,6 +2249,14 @@ extension Strings {
         menuEdit: "Edit",
         menuUndo: "Undo",
         menuRedo: "Redo",
+        actionClear: "Clear",
+        actionRemove: "Remove",
+        actionBack: "Back",
+        actionSearch: "Search",
+        actionMute: "Mute",
+        actionUnmute: "Unmute",
+        actionPlay: "Play",
+        actionPause: "Pause",
         menuCut: "Cut",
         menuCopy: "Copy",
         menuPaste: "Paste",
@@ -2226,8 +2330,8 @@ extension Strings {
         notifyBatteryTitle: "Vorssaint disabled",
         notifyBatteryBody: "Low battery. Normal sleep was restored to protect the charge.",
         adminPromptClamshellOn: "Vorssaint needs your password to keep the Mac going with the lid closed.",
-        adminPromptClamshellOff: "Vorssaint needs your password to restore the Mac's normal sleep.",
-        adminPromptRecover: "Vorssaint quit while the Mac's sleep was disabled. Enter the password to restore normal sleep.",
+        adminPromptClamshellOff: "Vorssaint needs your password to restore the Mac’s normal sleep.",
+        adminPromptRecover: "Vorssaint quit while the Mac’s sleep was disabled. Enter the password to restore normal sleep.",
         adminPromptUpdate: "Vorssaint needs your password to install the update.",
         adminPromptSudoersInstall: "Vorssaint will create a restricted rule (pmset disablesleep only) to toggle closed-lid mode without asking for a password. This is the only time the password is needed.",
         adminPromptSudoersRemove: "Vorssaint will remove the password-free closed-lid rule.",
@@ -2239,8 +2343,10 @@ extension Strings {
         tabSwitcher: "Switcher",
         tabAdvanced: "Advanced",
         tabAbout: "About",
-        tabReleaseNotes: "What's New",
-        releaseNotesOnUpdateToggle: "Show what's new after updating",
+        tabReleaseNotes: "What’s New",
+        releaseNotesOnUpdateToggle: "Show what’s new after updating",
+        minimalWindowPreviews: "Minimal previews",
+        minimalWindowPreviewsCaption: "Hide titles, buttons and decorative details in Dock and switcher previews. The selection stays visible.",
         previewSizeLabel: "Preview size",
         previewSizeNormal: "Normal",
         previewSizeLarge: "Large",
@@ -2256,7 +2362,7 @@ extension Strings {
         advancedUninstallDescription: "Does all of the above, then removes the preferences and moves Vorssaint to the Trash, leaving nothing behind. The app quits when done. You can reinstall anytime.",
         advancedUninstallButton: "Uninstall Vorssaint completely",
         advancedUninstallConfirmTitle: "Uninstall Vorssaint?",
-        advancedUninstallConfirmBody: "Vorssaint will clear its permissions, remove its preferences and move to the Trash, then quit. This can't be undone from the app, but it stays in the Trash until you empty it.",
+        advancedUninstallConfirmBody: "Vorssaint will clear its permissions, remove its preferences and move to the Trash, then quit. This can’t be undone from the app, but it stays in the Trash until you empty it.",
         advancedUninstallFailedTitle: "Uninstall stopped",
         advancedUninstallFailedBody: "Vorssaint could not put back a system setting it changed: sleep, fan speed or mouse acceleration. Nothing was removed. Try again and allow the password request if it appears.",
 
@@ -2278,7 +2384,7 @@ extension Strings {
         batteryProtectionCaption: "Keeps a forgotten session from draining the MacBook battery.",
         clamshellSection: "Closed lid",
         configuring: "Configuring…",
-        sudoersFailed: "Couldn't turn on closed-lid mode. Try again.",
+        sudoersFailed: "Couldn’t turn on closed-lid mode. Try again.",
         clamshellExplanation: "“Keep going with the lid closed” fully disables sleep while “Keep awake” is active and is reverted automatically when the session ends or the app quits. Prefer using it plugged in.",
 
         scrollSection: "Scrolling",
@@ -2315,11 +2421,11 @@ extension Strings {
         colorPickerPickNow: "Pick color",
         micMuteName: "Mute microphone",
         micUnmuteName: "Unmute microphone",
-        micMuteCaption: "Cuts the Mac's microphone with a click or shortcut, across every app.",
+        micMuteCaption: "Cuts the Mac’s microphone with a click or shortcut, across every app.",
         micMutedHUD: "Microphone muted",
         micUnmutedHUD: "Microphone back on",
         micMuteMenuBarToggle: "Show in the menu bar while muted",
-        micMuteMenuBarCaption: "A red crossed-out mic appears beside the app's icon in the menu bar.",
+        micMuteMenuBarCaption: "A red crossed-out mic appears beside the app’s icon in the menu bar.",
         pastePlainName: "Paste as plain text",
         pastePlainCaption: "Pastes what you copied without colors, fonts or formatting. The original stays on the clipboard.",
         launcherName: "Quick panel",
@@ -2336,18 +2442,18 @@ extension Strings {
         switcherUsageHint: "Hold the shortcut to navigate; release to activate the window. Shift or ← goes back; W closes the window; Q quits the app; Esc cancels.",
         switcherNoWindows: "No open windows",
         switcherIconRowMode: "Show %@ with large icons",
-        switcherIconRowModeCaption: "Shows one icon per app with that app's window previews above it.",
+        switcherIconRowModeCaption: "Shows one icon per app with that app’s window previews above it.",
         switcherSimpleMode: "Simple app switcher",
         switcherSimpleModeCaption: "Shows app icons and window titles, without previews or screen capture by the switcher.",
         switcherShortcutHintApps: "Apps",
         switcherShortcutHintWindows: "Windows",
-        switcherWindowShortcutCaption: "Opens a switcher for the frontmost app's windows. While the Apps switcher is open, jumps between the selected app's windows.",
+        switcherWindowShortcutCaption: "Opens a switcher for the frontmost app’s windows. While the Apps switcher is open, jumps between the selected app’s windows.",
         switcherTakeOverSystemShortcuts: "Replace macOS ⌘Tab and ⌘`",
-        switcherTakeOverSystemShortcutsCaption: "Disables the matching macOS app and window shortcuts only while Vorssaint's switcher is active. All running apps stay reachable.",
+        switcherTakeOverSystemShortcutsCaption: "Disables the matching macOS app and window shortcuts only while Vorssaint’s switcher is active. All running apps stay reachable.",
         switcherAppearanceDelay: "Appearance delay",
         switcherAppearanceDelayCaption: "How long the shortcut must be held before the switcher appears.",
         switcherMergeTabs: "Show one entry per app",
-        switcherMergeTabsCaption: "Collapses all of an app's windows into one entry in the switcher, instead of one entry per window.",
+        switcherMergeTabsCaption: "Collapses all of an app’s windows into one entry in the switcher, instead of one entry per window.",
         switcherWindowlessApps: "Apps with no open window",
         switcherWindowlessAppsCaption: "Chooses which running apps with no window at all show up in the switcher.",
         switcherWindowlessAppsOff: "Do not show",
@@ -2358,16 +2464,19 @@ extension Strings {
         dockPreviewName: "Dock Preview",
         dockPreviewEnable: "Preview windows from the Dock",
         dockPreviewEnableCaption: "Hover over an open app in the Dock to see its windows, then click the one you want.",
+        dockPreviewCurrentSpaceOnlyCaption: "When off, shows windows from all desktops. Choosing a window on another desktop takes you there.",
         dockPreviewBackgroundOpacity: "Panel background",
         dockPreviewBackgroundOpacityCaption: "Turn it down to see more of what sits behind the panel.",
         dockPreviewOpenDelay: "Open delay",
         dockPreviewOpenDelayCaption: "How long the pointer has to rest on an icon before its panel opens.",
         dockPreviewQuitAppOnClose: "Quit the app with the × button",
         dockPreviewQuitAppOnCloseCaption: "In Dock Preview, × quits the whole app instead of closing only that window.",
+        dockPreviewOrderByCreation: "Order windows by creation time",
+        dockPreviewOrderByCreationCaption: "Show older windows first instead of the ones you used most recently.",
         dockClickMinimize: "Click the Dock icon to minimize",
-        dockClickMinimizeCaption: "The active app's windows minimize when you click its Dock icon. Click again to bring them back.",
+        dockClickMinimizeCaption: "The active app’s windows minimize when you click its Dock icon. Click again to bring them back.",
         dockClickCycleWindows: "Click the Dock icon to cycle windows",
-        dockClickCycleWindowsCaption: "Click an active app's Dock icon to rotate through its windows, like ⌘`.",
+        dockClickCycleWindowsCaption: "Click an active app’s Dock icon to rotate through its windows, like ⌘`.",
         dockPreviewActiveNow: "Active in the Dock",
         dockPreviewDockUnavailable: "Could not read Dock items.",
         dockPreviewAutohideBeta: "Beta. You may run into some bugs.",
@@ -2405,10 +2514,10 @@ extension Strings {
 
         autoQuitName: "Quit on close",
         autoQuitEnable: "Quit an app when its last window closes",
-        autoQuitEnableCaption: "Closing an app's last window also quits it.",
+        autoQuitEnableCaption: "Closing an app’s last window also quits it.",
         autoQuitActiveNow: "Active now",
         autoQuitHowTitle: "How it works",
-        autoQuitStep1: "Close an app's last window (⌘W or the red button).",
+        autoQuitStep1: "Close an app’s last window (⌘W or the red button).",
         autoQuitStep2: "The app quits on its own. “Save changes?” dialogs still appear.",
         autoQuitPredictableNote: "Apps that normally run without a window are never quit.",
         autoQuitExceptionsTitle: "Exceptions",
@@ -2431,7 +2540,7 @@ extension Strings {
         uninstallerEmptyNote: "Nothing is removed without your confirmation.",
         uninstallerFDANote: "Grant Full Disk Access for a more thorough scan.",
         uninstallerFDAGrant: "Grant access…",
-        uninstallerFDAHint: "Turn Vorssaint on in the list. If it isn't there, click + and pick Vorssaint from Applications. Access only applies after you reopen the app.",
+        uninstallerFDAHint: "Turn Vorssaint on in the list. If it isn’t there, click + and pick Vorssaint from Applications. Access only applies after you reopen the app.",
         uninstallerFDARelaunch: "Relaunch now",
         uninstallerScanning: "Scanning files…",
         uninstallerRemoving: "Moving to the Trash…",
@@ -2441,7 +2550,7 @@ extension Strings {
         uninstallerCancel: "Cancel",
         uninstallerDoneTitle: "Done!",
         uninstallerFreedFormat: "%@ recovered",
-        uninstallerSomeFailed: "Some items couldn't be moved to the Trash.",
+        uninstallerSomeFailed: "Some items couldn’t be moved to the Trash.",
         uninstallerFailedNeedsFDA: "Sandboxed app data can only be moved with Full Disk Access. The administrator password does not stand in for it.",
         uninstallerFailedMoreFormat: "and %d more",
         uninstallerAnother: "Uninstall another",
@@ -2453,6 +2562,11 @@ extension Strings {
         uninstallerCatLogs: "Logs",
         uninstallerCatState: "Saved state",
         uninstallerCatOther: "Other",
+        uninstallerCommandBarBrowseTitle: "Uninstall Application",
+        uninstallerCommandBarToggle: "Show in Command Bar",
+        uninstallerCommandBarCaption: "Choose and uninstall apps in the Command Bar.",
+        uninstallerCommandBarFinderTitle: "Uninstall app selected in Finder",
+        uninstallerSelectionUnavailable: "Select an app that can be removed in Finder, or choose another from the list.",
 
         urlCleanerName: "Clean URL",
         urlCleanerEnable: "Clean URLs as you copy them",
@@ -2543,13 +2657,13 @@ extension Strings {
         homebrewOperationUpdatedHomebrew: "Homebrew updated.",
         homebrewOperationFailedFormat: "Could not finish %@.",
         homebrewOperationCancelled: "Operation cancelled.",
-        homebrewOperationPreparing: "Preparing...",
-        homebrewOperationDownloading: "Downloading files...",
-        homebrewOperationInstalling: "Installing files...",
-        homebrewOperationUninstalling: "Removing files...",
-        homebrewOperationUpgrading: "Updating files...",
-        homebrewOperationFinalizing: "Finishing...",
-        homebrewOperationRefreshing: "Refreshing list...",
+        homebrewOperationPreparing: "Preparing…",
+        homebrewOperationDownloading: "Downloading files…",
+        homebrewOperationInstalling: "Installing files…",
+        homebrewOperationUninstalling: "Removing files…",
+        homebrewOperationUpgrading: "Updating files…",
+        homebrewOperationFinalizing: "Finishing…",
+        homebrewOperationRefreshing: "Refreshing list…",
         homebrewOperationTerminal: "Continue in Terminal.",
         homebrewOperationElapsedFormat: "%@ elapsed",
         homebrewOperationShowDetails: "Show details",
@@ -2581,6 +2695,9 @@ extension Strings {
         mediaCompressionLow: "Low",
         mediaCompressionMedium: "Medium",
         mediaCompressionHigh: "High",
+        mediaCompressionLowDescription: "High quality, large file size",
+        mediaCompressionMediumDescription: "Balanced quality and file size",
+        mediaCompressionHighDescription: "Low quality, small file size",
         mediaMaxSize: "Size",
         mediaSizingResolution: "Resolution",
         mediaSizingFileSize: "File size",
@@ -2639,7 +2756,7 @@ extension Strings {
         shelfPin: "Keep open",
         shelfUnpin: "Allow closing after use",
         extraBrightnessName: "Extra brightness",
-        extraBrightnessCaption: "Uses the display's HDR headroom to go past the maximum brightness. Uses more battery and the Mac can run warm.",
+        extraBrightnessCaption: "Uses the display’s HDR headroom to go past the maximum brightness. Uses more battery and the Mac can run warm.",
         extraBrightnessLevelLabel: "Intensity",
         extraBrightnessUnsupported: "Available only on XDR displays, such as the ones on the 14 and 16 inch MacBook Pro.",
         shelfHotkeyLabel: "Shortcut",
@@ -2654,13 +2771,18 @@ extension Strings {
         shelfHint: "Click to select. Drag out to use or right-click for more actions.",
         shelfItemImage: "Image",
         shelfTooltipItemsFormat: "%d items",
+        shelfTooltipItemsFew: "%d items",
         shelfTooltipImageSingular: "%d image",
+        shelfTooltipImageFew: "%d images",
         shelfTooltipImagePlural: "%d images",
         shelfTooltipFileSingular: "%d file",
+        shelfTooltipFileFew: "%d files",
         shelfTooltipFilePlural: "%d files",
         shelfTooltipNoteSingular: "%d note",
+        shelfTooltipNoteFew: "%d notes",
         shelfTooltipNotePlural: "%d notes",
         shelfTooltipLinkSingular: "%d link",
+        shelfTooltipLinkFew: "%d links",
         shelfTooltipLinkPlural: "%d links",
         shelfActionOpen: "Open",
         shelfActionOpenWith: "Open With",
@@ -2712,12 +2834,12 @@ extension Strings {
         betaBadgeLabel: "Beta",
         checkNowButton: "Check now",
         updateChecking: "Checking…",
-        updateUpToDate: "You're on the latest version.",
+        updateUpToDate: "You’re on the latest version.",
         updateAvailablePrefix: "Update available:",
         updateInstallButton: "Download and install",
         updateDownloading: "Downloading update…",
         updateInstalling: "Installing and restarting…",
-        updateFailedPrefix: "Couldn't check:",
+        updateFailedPrefix: "Couldn’t check:",
         updateLastChecked: "Last checked:",
         updateNotifyTitle: "Vorssaint update",
         updateInstallFailedBody: "The update was downloaded but could not be applied. Download the latest version from the GitHub releases page and drag the app over the current one.",
@@ -2733,6 +2855,11 @@ extension Strings {
         permissionOpenSettings: "Open System Settings…",
         permissionRequest: "Grant access",
         permissionRestartNote: "macOS may ask to reopen the app after granting.",
+        secureInputTitle: "Secure input is on",
+        secureInputHeldFormat: "%@ is holding it, so Vorssaint cannot type for you. Dismiss its password field, or quit it, to release it.",
+        secureInputUnattributed: "No running app claims it. Log out and back in to clear it.",
+        secureInputUnidentified: "The app holding it could not be identified, so Vorssaint cannot type for you.",
+        secureInputRevealFormat: "Show %@",
 
         aboutDescription: "A utility hub for your Mac.\nEnergy, system monitor, scrolling and a window switcher, right in the menu bar.",
         versionPrefix: "Version",
@@ -2770,7 +2897,7 @@ extension Strings {
         obStepDoneTitle: "All set!",
         obStepDoneBody: "Vorssaint is already looking after your Mac.",
         obDoneHint: "Look for the black hole in the menu bar, at the top right of the screen.",
-        obWhatsNewTitle: "What's new in this version",
+        obWhatsNewTitle: "What’s new in this version",
         obWhatsNewFallback: "This update includes the latest fixes and improvements.",
         obLanguageUpdateTitle: "Now in your language",
         obLanguageUpdateBody: "Vorssaint now speaks several languages. Choose the one you’d like to use; you can change it anytime in Settings.",
@@ -2908,7 +3035,7 @@ extension Strings {
         monitorPanelConfigHint: "Open a block to choose what it shows.",
         monitorOrderSection: "Section order",
         monitorOrderHint: "Drag to reorder the panel sections and use the eye to show or hide each one.",
-        obStepPanelTitle: "What's in the panel",
+        obStepPanelTitle: "What’s in the panel",
         obStepPanelBody: "Open each block and pick exactly what shows when you click the icon.",
         obStepPanelNavigationTitle: "Section-based panel",
         obStepPanelNavigationBody: "The panel can now show one section at a time. You can switch between Sections and List in Settings.",
@@ -2973,12 +3100,12 @@ extension Strings {
         homebrewOfficialIntroMigrationTitle: "Used the old tap?",
         homebrewOfficialIntroMigrationMessage: "Remove the tap once. The app and your settings stay in place.",
         homebrewOfficialIntroCopyButton: "Copy command",
-        updateShowcaseTitle: "What's new in 3.1.4",
+        updateShowcaseTitle: "What’s new in 3.1.4",
         updateShowcaseMessage: "Take a quick look at the main improvements in this update.",
         updateShowcaseUnavailable: "The video could not load right now. You can still continue.",
         updateShowcaseRestart: "Restart",
         showMenuBarIcon: "Show menu bar icon",
-        showMenuBarIconCaption: "If Vorssaint's icon disappears (macOS can hide menu bar icons when the bar runs out of room, common on Macs with a notch), reopen Vorssaint from Applications or Spotlight: that rebuilds the icon and, if it's still hidden, opens this window. The button above does the same when you can already get here. Keeping fewer menu bar icons, or fewer Vorssaint metrics, makes it far less likely.",
+        showMenuBarIconCaption: "If Vorssaint’s icon disappears (macOS can hide menu bar icons when the bar runs out of room, common on Macs with a notch), reopen Vorssaint from Applications or Spotlight: that rebuilds the icon and, if it’s still hidden, opens this window.",
         menuBarIconStillHiddenTitle: "The icon is still hidden",
         menuBarIconStillHiddenBody: "The icon was rebuilt, but macOS did not give it a visible spot. The menu bar is probably out of room: remove some menu bar icons (or close apps with long menus) and try again.",
         menuBarIconManagerHintFormat: "%@ is open and may be keeping the icon in its hidden section. Look for Vorssaint there, or set %@ to always show Vorssaint.",
@@ -2992,6 +3119,10 @@ extension Strings {
         shortcutDeleteHint: "Delete clears.",
         shortcutNotCaptured: "Nothing was captured. macOS or another app already uses that combination. Try another one.",
         shortcutConflictFormat: "This shortcut is already used by %@.",
+        shortcutTakeOverOffer: "macOS uses %@ for one of its own shortcuts.",
+        shortcutTakeOverAction: "Take over while Vorssaint runs",
+        shortcutTakeOverCaption: "macOS gets the key back whenever Vorssaint is not running or this feature is off.",
+        shortcutTakeOverDismiss: "Don’t take over",
         shortcutUnavailable: "macOS rejected this shortcut. Choose another one.",
         shelfShortcutToggle: "Shelf shortcut",
         switcherUsageHintFormat: "Hold %@ to navigate; release to activate the window. Shift or ← goes back; W closes the window; Q quits the app; Esc cancels.",
@@ -3088,7 +3219,7 @@ extension Strings {
         keepAwakeRightClickToggleCaption: "Replaces the right-click context menu.",
         urlCleanerRulesTitle: "Cleaning rules",
         urlCleanerRulesCaption: "A site attaches these parameters to its own share links to track where the link came from. Switched on, a name is removed when a link is cleaned; switched off, it stays. Names you add can be deleted.",
-        urlCleanerRulesCoverageCaption: "The list covers a site's different share paths — the web page, the app, a live room — which is why it is long; a real link usually carries only two to four of them.",
+        urlCleanerRulesCoverageCaption: "The list covers a site’s different share paths (the web page, the app, a live room), which is why it is long; a real link usually carries only two to four of them.",
         urlCleanerRulesAllSites: "All sites",
         urlCleanerRulesCountSingular: "1 parameter",
         urlCleanerRulesCountPluralFormat: "%d parameters",
@@ -3103,6 +3234,10 @@ extension Strings {
         switcherSearchPinCaption: "S starts a search and pins the switcher open, so typing no longer produces special characters when your shortcut uses ⌥, and a search starting with Q or W no longer closes the window or quits the app by mistake.",
         invertVerticalScroll: "Invert vertical scrolling",
         invertHorizontalScroll: "Invert horizontal scrolling",
+        scrollHorizontalName: "Scroll sideways while holding a key",
+        scrollHorizontalModifierLabel: "Modifier key",
+        scrollHorizontalCommandKey: "Command",
+        scrollHorizontalCaption: "Hold only the selected modifier to scroll the vertical mouse wheel horizontally. Other key combinations are unchanged.",
         switcherShowShortcutHints: "Show shortcut hints",
         switcherShowShortcutHintsCaption: "Shows the app and window shortcuts below the icons.",
         uninstallerHomebrewPackageFormat: "%@ will also be removed from Homebrew.",
@@ -3121,6 +3256,8 @@ extension Strings {
         switcherScreenPlacementMenuBar: "Screen with the menu bar",
         switcherScreenPlacementActiveWindow: "Screen with the active window",
         switcherScreenPlacementCaption: "Which display the switcher opens on when more than one is connected.",
+        switcherCurrentDisplayOnly: "Show only the current display",
+        switcherCurrentDisplayOnlyCaption: "Lists only windows on the display under the pointer. If that display has no windows, the switcher does not open.",
         smoothScrollResponseLabel: "Response",
         mouseAccelerationName: "Disable mouse acceleration",
         mouseAccelerationCaption: "Removes pointer acceleration for connected mice. Your previous setting returns when this is turned off or Vorssaint quits.",
